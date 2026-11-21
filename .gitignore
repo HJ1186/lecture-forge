@@ -47,3 +47,5 @@ config.json
 .env
 .env.*
 credentials.json
+
+start-log.txt

@@ -1,8 +1,8 @@
 @echo off
 rem ===================================================================
-rem  lecture-forge  launcher (Windows)
-rem  Double-click this file.  If the window flashes and closes, the
-rem  reason is printed below - this file always pauses at the end.
+rem  lecture-forge launcher (Windows)  -  CRLF, ASCII only, always pauses
+rem  Every pre-flight step is also written to start-log.txt so that a
+rem  window that still flashes leaves behind something to read.
 rem ===================================================================
 setlocal
 chcp 65001 >nul 2>&1
@@ -11,13 +11,43 @@ set "PYTHONUTF8=1"
 cd /d "%~dp0"
 title lecture-forge
 
-echo.
-echo   lecture-forge
-echo   ------------------------------------------------------------
-echo   current folder: %CD%
-echo.
+set "LOG=%~dp0start-log.txt"
+> "%LOG%" echo lecture-forge launcher log
+>>"%LOG%" echo.
+>>"%LOG%" echo time : %DATE% %TIME%
+>>"%LOG%" echo folder: %CD%
+>>"%LOG%" echo script: %~f0
 
-rem --- 1) find a python we can actually use -------------------------
+call :prep >> "%LOG%" 2>&1
+set "RC=%errorlevel%"
+type "%LOG%"
+echo.
+if not "%RC%"=="0" goto :end
+
+if not defined LF_NO_BROWSER (
+  echo   opening http://127.0.0.1:8765 in your browser...
+  start "" http://127.0.0.1:8765
+)
+echo   serving. close this window to stop.
+echo.
+%PY% -m lecture_forge serve
+echo.
+echo   server stopped, exit code %errorlevel%
+
+:end
+echo.
+echo   ------------------------------------------------------------
+echo   log written to: %LOG%
+echo   if the problem is not obvious, send that file along.
+echo.
+pause
+exit /b
+
+rem -------------------------------------------------------------------
+rem  pre-flight: find python, check the one required package, build once
+rem  success = exit 0 ; failure = exit 1
+rem -------------------------------------------------------------------
+:prep
 set "PY="
 if exist ".venv\Scripts\python.exe" set "PY=.venv\Scripts\python.exe"
 if not defined PY (
@@ -27,52 +57,27 @@ if not defined PY (
   where python >nul 2>&1 && set "PY=python"
 )
 if not defined PY (
-  echo   [ERROR] Python not found on PATH.
-  echo.
-  echo   Install Python 3.9+ from python.org and tick
-  echo   "Add python.exe to PATH", then double-click this file again.
-  goto :end
+  echo [FAIL] Python not found on PATH.
+  echo        Install Python 3.9+ from python.org and tick "Add to PATH".
+  exit /b 1
 )
-
-echo   python: %PY%
-%PY% -c "import sys;print('   version:',sys.version.split()[0],'|',sys.executable)" 2>nul
+echo python: %PY%
+%PY% -c "import sys;print(' version:',sys.version.split()[0]);print(' exe    :',sys.executable)"
 if errorlevel 1 (
-  echo   [ERROR] that python cannot even run. Try: py -3 --version
-  goto :end
+  echo [FAIL] that python cannot run. Try: py -3 --version
+  exit /b 1
 )
-
-rem --- 2) the only hard requirement (stage build/serve) -------------
 %PY% -c "import markdown" >nul 2>&1
 if errorlevel 1 (
-  echo.
-  echo   [ERROR] missing package: markdown
-  echo   fix it with:   %PY% -m pip install -r requirements.txt
-  goto :end
+  echo [FAIL] missing package: markdown
+  echo        fix: %PY% -m pip install -r requirements.txt
+  exit /b 1
 )
-
-rem --- 3) first run: build the bundled demo ------------------------
-if not exist "site\index.html" (
-  echo.
-  echo   no site\ yet - building the bundled demo lecture...
-  %PY% -m lecture_forge build examples\demo-lecture -o site
-  if errorlevel 1 (
-    echo   [ERROR] build failed. Run:  python -m lecture_forge doctor
-    goto :end
-  )
+if exist "site\index.html" exit /b 0
+echo building the bundled demo lecture...
+%PY% -m lecture_forge build examples\demo-lecture -o site
+if errorlevel 1 (
+  echo [FAIL] build failed, run: %PY% -m lecture_forge doctor
+  exit /b 1
 )
-
-echo.
-echo   open  http://127.0.0.1:8765   in your browser
-echo   close this window to stop the server
-echo.
-if not defined LF_NO_BROWSER start "" http://127.0.0.1:8765
-
-%PY% -m lecture_forge serve
-echo.
-echo   server stopped with exit code %errorlevel%
-
-:end
-echo.
-echo   ------------------------------------------------------------
-echo   this window stays open so you can read the message above.
-pause
+exit /b 0
