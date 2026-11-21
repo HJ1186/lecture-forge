@@ -102,7 +102,7 @@ python -m lecture_forge audit .
 ```
 
 六组检查与其修法见 [`docs/AUDIT.md`](docs/AUDIT.md)。CI 里也挂了同一条命令
-（`.github/workflows/audit.yml`）。
+（`docs/ci/audit.yml`；复制到 `.github/workflows/` 就会在每次 push 时自动跑，需要带 `workflow` 权限的 token 推一次）。
 
 ## 限制（先说清楚）
 
