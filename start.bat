@@ -1,15 +1,25 @@
 @echo off
-chcp 65001 >nul
+rem ---------------------------------------------------------------
+rem  One-click launcher for Windows (double-click this file).
+rem  Kept ASCII-only on purpose: a .bat with Chinese text inside
+rem  if(...) blocks gets mangled by cmd.exe's OEM codepage.
+rem  For Chinese prompts use start.ps1 instead.
+rem ---------------------------------------------------------------
 cd /d "%~dp0"
 
 set PY=python
 if exist ".venv\Scripts\python.exe" set PY=.venv\Scripts\python.exe
 
 if not exist "site\index.html" (
-  echo 还没有 site\，先用示例讲义构建一次...
+  echo No site\ folder yet - building the bundled demo lecture first...
   %PY% -m lecture_forge build examples\demo-lecture -o site
 )
 
-echo 笔记：在 config.json 里填 model.api_key 就能问任意问题（不填则只查问答库）
+echo.
+echo   Lecture + ask box:  http://127.0.0.1:8765
+echo   Put model.api_key into config.json to ask anything.
+echo   Leave it empty to use the offline QA bank only.
+echo.
+
 %PY% -m lecture_forge serve
 pause

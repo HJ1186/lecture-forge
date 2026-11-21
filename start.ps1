@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # 一条命令起本地服务（讲义 + 速答框 + 独立提问页）。
 # 用法：./start.ps1            （默认读 config.json，站点目录 site）
 #      ./start.ps1 -Site site  （指定站点目录）

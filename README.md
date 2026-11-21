@@ -39,7 +39,15 @@ cp config.example.json config.json                    # 填你自己的模型 ke
 python -m lecture_forge serve                         # http://127.0.0.1:8765/
 ```
 
-Windows 用户也可以直接双击 `start.bat`（或 `./start.ps1`）。
+Windows 用户可以不敲命令，直接双击仓库根目录的 **`start.bat`**：它会自己检查 `site/`、
+没有就先构建示例讲义，然后起服务并把地址打出来（关掉黑窗口即停止）。
+
+`start.ps1` 是同一件事的 PowerShell 版（输出带颜色）。如果提示"在此系统上禁止运行脚本"，
+用 `start.bat`，或者执行一次：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
 
 详细步骤见 [`docs/QUICKSTART.md`](docs/QUICKSTART.md)。
 
