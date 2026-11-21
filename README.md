@@ -51,10 +51,26 @@ powershell -ExecutionPolicy Bypass -File .\start.ps1
 
 详细步骤见 [`docs/QUICKSTART.md`](docs/QUICKSTART.md)。
 
+### 双击没反应、窗口一闪就没了？
+
+先双击 **`doctor.bat`**（或 `python -m lecture_forge doctor`）。它会逐项打印 Python、依赖、
+ffmpeg、模型缓存、配置、端口，缺什么就在下面直接给出安装命令，最后永远 `pause`，
+所以不会再"闪一下就没了"。
+
+窗口一闪就关，通常是这三件事之一：
+
+1. 电脑上没有 Python，或 `python` 指向 Microsoft Store 的占位程序；
+2. `markdown` 没装（`pip install -r requirements.txt`）；
+3. `start.bat` 的换行被编辑器改成了 LF —— cmd 解析 LF 换行的批处理会出错。
+   仓库里已经用 `.gitattributes` 把 `*.bat` / `*.ps1` 固定成 CRLF，别手动改回来。
+
+想看完整报错：`Win+R` → 输入 `cmd /k` → 把 `start.bat` 拖进窗口 → 回车。窗口不会关。
+
 ## 命令
 
 | 命令 | 作用 |
 | --- | --- |
+| `python -m lecture_forge doctor` | 环境自检：缺什么、怎么装，一次全告诉你 |
 | `python -m lecture_forge fetch <URL或文件> -o work` | 下载音频 + 低清视频（本地文件则直接复制） |
 | `python -m lecture_forge transcribe work/audio.m4a -o work` | 语音转文字，带时间戳（.txt/.srt/.jsonl） |
 | `python -m lecture_forge slides work/video.mp4 -o work/slides` | 按画面变化抽幻灯片帧，自动裁边放大 |

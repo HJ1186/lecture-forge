@@ -61,7 +61,17 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--json", action="store_true")
     a.add_argument("--strict", action="store_true", help="warnings fail too")
 
+    d = sub.add_parser("doctor", help="diagnose the environment (why won't it start?)")
+    d.add_argument("-c", "--config", default=None)
+    d.add_argument("--root", default=".")
+
     args = p.parse_args(argv)
+
+    if args.cmd == "doctor":
+        from .doctor import doctor
+
+        return doctor(args.config, args.root)
+
 
     if args.cmd == "fetch":
         from .fetch_media import fetch
