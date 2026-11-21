@@ -93,7 +93,7 @@ auditing /path/to/lecture-forge  (37 files)
 
 ## 接到 CI 里
 
-`.github/workflows/audit.yml` 已经在每次 push / PR 时跑这一条命令；失败就红。
+`docs/ci/audit.yml` 是现成的 CI 配置：复制到 `.github/workflows/` 就会在每次 push / PR 时跑这一条命令，失败就红。
 自己也建议加成本地 pre-commit 钩子：
 
 ```bash
