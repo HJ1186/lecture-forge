@@ -1,4 +1,4 @@
-# 依赖：只有 build / serve / audit 是必需的，其余按阶段装
+# 依赖：只有 build / serve / audit 是必需的，其余按阶段装。
 # 说明：这些都不是本项目自身依赖，而是各个阶段的工具，按需安装即可。
 
 # 阶段 ⑤ 生成网页（必需）
@@ -13,3 +13,11 @@ faster-whisper>=1.0.0
 # 阶段 ③ 抽幻灯片帧
 av>=12.0.0
 pillow>=10.0.0
+
+# 可选：N 卡加速（装完 faster-whisper 会自动用 cuda；国内走镜像更快）
+#   pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
+#
+# 可选：要从 PDF 里取素材时
+#   pip install pymupdf
+#
+# 另外需要 ffmpeg（yt-dlp 合并/转封装时用）：winget install Gyan.FFmpeg.Essentials

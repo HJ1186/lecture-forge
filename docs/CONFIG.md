@@ -39,6 +39,25 @@
 
 只认 **OpenAI 兼容**（`POST {base_url}/chat/completions`）。其他协议的模型套一个兼容网关即可。
 
+## 国内网络：别每次都去 huggingface 下模型
+
+模型默认从 huggingface.co 下载，国内经常卡住。三种解法，任选一种：
+
+```jsonc
+"asr": {
+  // 1) 指定一个本地模型目录，完全离线
+  "model": "D:/models/faster-whisper-large-v3",
+  // 2) 或者复用你之前下载过的缓存目录
+  "download_root": "D:/models",
+  // 3) 或者干脆禁止联网查找（缺模型时直接报错，便于定位）
+  "local_files_only": true
+}
+```
+
+`model` 也可以直接写成 snapshot 目录，
+例如 `.../.models/models--Systran--faster-whisper-large-v3/snapshots/<hash>`。
+实测组合：large-v3 + cuda/float16，25 秒音频 11.8 秒出结果。
+
 ## `initial_prompt` 为什么重要
 
 中文技术课里，同音词是转写错误的主要来源。实测：把"节点/支路/回路/网孔"和这门课的人名、

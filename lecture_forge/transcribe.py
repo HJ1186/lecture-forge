@@ -58,6 +58,14 @@ def _load(cfg: dict):
         raise
     _harden_windows_cuda()
     asr = cfg.get("asr", {})
+    name = asr.get("model", "large-v3")
+    extra = {}
+    # China-friendly: reuse a model folder you already downloaded instead of
+    # hitting huggingface.co every time.  `asr.model` may also be a local dir.
+    if asr.get("download_root"):
+        extra["download_root"] = os.path.expanduser(asr["download_root"])
+    if asr.get("local_files_only"):
+        extra["local_files_only"] = True
     device = asr.get("device", "auto")
     compute = asr.get("compute_type", "auto")
     attempts = []
@@ -68,13 +76,47 @@ def _load(cfg: dict):
     last = None
     for dev, ct in attempts:
         try:
-            info("loading whisper model %r on %s/%s ..." % (asr.get("model", "large-v3"), dev, ct))
-            return WhisperModel(asr.get("model", "large-v3"), device=dev, compute_type=ct)
+            info("loading whisper model %r on %s/%s ..." % (name, dev, ct))
+            return WhisperModel(name, device=dev, compute_type=ct, **extra)
         except Exception as e:
             last = e
             warn("cannot use %s/%s (%s); trying the next option" % (dev, ct, str(e)[:120]))
     die("no usable whisper device: %s" % last)
     raise SystemExit(1)
+
+
+def _decode_audio(path: str, rate: int = 16000):
+    """Decode any media file to mono float32 @16 kHz ourselves.
+
+    faster-whisper ships its own decoder, but it calls
+    ``av.open(..., metadata_errors="ignore")`` — a keyword newer PyAV builds
+    (>= 15) no longer accept, which makes the whole stage explode with
+    ``TypeError: open() got an unexpected keyword argument 'metadata_errors'``.
+    Decoding here keeps us independent of that internal API.
+    """
+    import av
+    import numpy as np
+
+    with av.open(path) as container:
+        if not container.streams.audio:
+            raise RuntimeError("no audio stream in %s" % os.path.basename(path))
+        stream = container.streams.audio[0]
+        resampler = av.AudioResampler(format="flt", layout="mono", rate=rate)
+        chunks = []
+        for frame in container.decode(stream):
+            for out in resampler.resample(frame):
+                buf = out.to_ndarray()
+                if buf.ndim == 2:
+                    buf = buf[0] if buf.shape[0] == 1 else buf.mean(axis=0)
+                chunks.append(np.ascontiguousarray(buf, dtype=np.float32))
+        for out in resampler.resample(None):
+            buf = out.to_ndarray()
+            if buf.ndim == 2:
+                buf = buf[0] if buf.shape[0] == 1 else buf.mean(axis=0)
+            chunks.append(np.ascontiguousarray(buf, dtype=np.float32))
+    if not chunks:
+        raise RuntimeError("decoded no audio from %s" % os.path.basename(path))
+    return np.concatenate(chunks)
 
 
 def transcribe(audio: str, outdir: str, cfg: dict) -> dict:
@@ -83,8 +125,13 @@ def transcribe(audio: str, outdir: str, cfg: dict) -> dict:
     model = _load(cfg)
     asr = cfg.get("asr", {})
     info("transcribing %s (this is the slow part) ..." % os.path.basename(audio))
+    try:
+        feed = _decode_audio(audio)
+    except Exception as e:
+        warn("own decoder failed (%s); letting faster-whisper decode the file" % str(e)[:120])
+        feed = audio
     segments, meta = model.transcribe(
-        audio,
+        feed,
         language=asr.get("language") or None,
         vad_filter=True,
         beam_size=int(asr.get("beam_size", 5)),

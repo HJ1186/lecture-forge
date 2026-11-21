@@ -24,7 +24,10 @@ DEFAULT_CONFIG = {
         "device": "auto",
         "compute_type": "auto",
         "language": "zh",
+        "beam_size": 5,
         "initial_prompt": "",
+        "download_root": "",
+        "local_files_only": False,
     },
 }
 

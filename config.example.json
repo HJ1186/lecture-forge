@@ -15,6 +15,8 @@
     "compute_type": "auto",
     "language": "zh",
     "beam_size": 5,
-    "initial_prompt": "以下是中文技术课程的字幕，包含专业术语（例如：节点、支路、回路、网孔、电压、电流、电阻、欧姆定律、基尔霍夫定律）。"
+    "initial_prompt": "以下是中文技术课程的字幕，包含专业术语（例如：节点、支路、回路、网孔、电压、电流、电阻、欧姆定律、基尔霍夫定律）。",
+    "download_root": "",
+    "local_files_only": false
   }
 }
