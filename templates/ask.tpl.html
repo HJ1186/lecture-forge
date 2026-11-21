@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="__LANG__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>问答 · __TITLE__</title>
+<style>__CSS__</style>
+</head>
+<body>
+<div class="wrap">
+<h1>问答</h1>
+<p class="hint">把讲义里没看懂的一段粘贴进来，再问一句你想问的 —— 回车就给答案。
+  需要先在本地运行 <code>python -m lecture_forge serve</code>，并在 config.json 里填自己的模型 key。</p>
+
+<div class="bar"><span class="dot" id="dot"></span><span id="bartxt">正在检测本地服务…</span></div>
+
+<label for="ctx">① 要问的内容（可选，从讲义/课本里复制过来）</label>
+<textarea id="ctx" placeholder="例如：把「网孔电流法只适用于平面电路」这一段贴进来，或者贴一道题的题干和电路参数。（不贴也行，直接问问题）"></textarea>
+
+<label for="qq">② 你的问题</label>
+<input id="qq" type="text" placeholder="例如：为什么这里互电阻是负的？ / 这道题下一步该怎么算？">
+
+<div class="row">
+  <button class="primary" id="go2">问一下（Ctrl+Enter）</button>
+  <button id="paste">读取剪贴板</button>
+  <button id="clear">清空</button>
+  <span class="hint">回答只保留当前这一问，不留历史。</span>
+</div>
+
+<div id="out"></div>
+<p class="hint"><a href="index.html">← 回到讲义</a></p>
+</div>
+
+<script id="lf-bank" type="application/json">__BANK__</script>
+<script>
+window.LF_CONFIG = __CONFIG__;
+try { window.LF_BANK = JSON.parse(document.getElementById("lf-bank").textContent || "[]"); }
+catch (e) { window.LF_BANK = []; }
+</script>
+<script>__JS__</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+# 你自己的配置：复制 config.example.json 为 config.json 后填写
+# config.json 已在 .gitignore 里，永远不会进仓库。
+
+# 媒体与模型产物
+work/
+site/
+*.mp4
+*.mkv
+*.mov
+*.m4a
+*.mp3
+*.wav
+*.flac
+*.srt
+*.jsonl
+
+# 讲义里的中间文件
+_*.png
+_pdfpages/
+_dump*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# 日志与备份
+*.log
+*.bak
+*.tmp
+~$*
+
+# 本地密钥（务必保持忽略）
+config.json
+.env
+.env.*
+credentials.json

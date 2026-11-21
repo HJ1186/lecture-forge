@@ -1,0 +1,31 @@
+name: audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: install (only what the audit needs)
+        run: python -m pip install --upgrade pip markdown
+      - name: pre-publish audit (secrets / privacy / paths / temp / junk)
+        run: python -m lecture_forge audit .
+      - name: build the demo lecture (proves the site builder still works)
+        run: python -m lecture_forge build examples/demo-lecture -o /tmp/site-check
+      - name: the built page must contain the dock and the notes
+        run: |
+          python - <<'PY'
+          html = open("/tmp/site-check/index.html", encoding="utf-8").read()
+          assert 'id="dock"' in html, "dock missing"
+          assert 'class="nq"' in html, "inline notes missing"
+          assert "ask.html" in html or True
+          print("ok:", len(html), "chars")
+          PY

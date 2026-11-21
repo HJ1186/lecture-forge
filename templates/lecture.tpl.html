@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="__LANG__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__TITLE__</title>
+<style>__CSS__</style>
+</head>
+<body>
+<div class="wrap">
+<h1>__TITLE__</h1>
+__SUBTITLE__
+__BODY__
+</div>
+
+<div id="dock">
+  <div id="panel">
+    <div class="ph">
+      <b>速答</b><span class="tag" id="md">检测中</span>
+      <span class="sp"></span>
+      <button id="n-open" title="展开所有便签">便签＋</button>
+      <button id="n-close" title="收起所有便签">便签－</button>
+      <button id="n-hide" title="隐藏所有便签">隐藏</button>
+      <button id="x" title="收起速答窗">×</button>
+    </div>
+    <div id="cx"><button id="grab" title="读取当前正在看的这一节">📄 看我在哪</button><span id="cxt"></span></div>
+    <div class="ps"><input id="q" placeholder="输入关键词或问题，回车" autocomplete="off"><button id="go">问</button></div>
+    <div id="ans"><div class="empty">只留当前这一问，不留历史。</div></div>
+    <div class="pf"><button id="copy">复制问题</button><span id="st"></span></div>
+  </div>
+  <button id="dockbtn" title="速答窗口">问</button>
+</div>
+
+<script id="lf-bank" type="application/json">__BANK__</script>
+<script>
+window.LF_CONFIG = __CONFIG__;
+try { window.LF_BANK = JSON.parse(document.getElementById("lf-bank").textContent || "[]"); }
+catch (e) { window.LF_BANK = []; }
+</script>
+<script>__JS__</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "lecture-forge meta",
+  "description": "一个讲义文件夹的元信息（lecture/meta.json）。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "title": {"type": "string", "minLength": 2, "description": "页面大标题"},
+    "subtitle": {"type": "string", "description": "标题下面那句说明：对应哪个视频/文件、时长、出处"},
+    "lang": {"type": "string", "enum": ["zh", "en"], "default": "zh"},
+    "api": {
+      "type": "string",
+      "description": "服务端地址。留空表示与页面同源（推荐，用 python -m lecture_forge serve 打开时自动同源）。"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "可选的来源信息：url / author / duration / chapter",
+      "properties": {
+        "url": {"type": "string"},
+        "author": {"type": "string"},
+        "duration": {"type": "string"},
+        "chapter": {"type": "string"}
+      }
+    },
+    "disclaimer": {
+      "type": "string",
+      "description": "版权/用途声明，会显示在页面顶部说明块里"
+    }
+  }
+}
