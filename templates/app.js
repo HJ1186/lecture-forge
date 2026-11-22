@@ -138,10 +138,18 @@
       st.textContent = txt;
       if (mdTag) { mdTag.className = "tag" + (cls ? " " + cls : ""); mdTag.textContent = txt; }
     }
-    ping().then(function (r) {
-      online = !!(r && r.ok);
-      status(online ? (r.mode === "model" ? "模型在线" : "助手在线 · 题库") : "离线题库", online ? "on" : "");
-    });
+    function refresh() {
+      return ping().then(function (r) {
+        online = !!(r && r.ok);
+        status(online ? (r.mode === "model" ? "模型在线" : "助手在线 · 题库") : "离线题库", online ? "on" : "");
+        return r;
+      });
+    }
+    refresh();
+    /* config.json is re-read by the server on every request: after you paste a
+       key in, switching back to this page is enough - no restart, no reload. */
+    window.addEventListener("focus", function () { refresh(); });
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
 
     function go() {
       var q = (qIn.value || "").trim();

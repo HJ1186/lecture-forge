@@ -48,6 +48,33 @@ def _system_prompt() -> str:
         return FALLBACK_SYSTEM
 
 
+# --- config, re-read when the file changes ----------------------------------
+# Why: people start the server, then paste their api_key into config.json and
+# wonder why the page still says "bank". Reading the config once at startup
+# turns a five-second edit into a "you must restart" mystery. So the mtime is
+# checked on every request and the file is reloaded when it moves.
+_CONFIG_PATH: str = ""
+_CFG: dict = {}
+_CFG_MTIME: float = -1.0
+
+
+def cfg() -> dict:
+    """Current config, reloaded automatically after the file is edited."""
+    global _CFG, _CFG_MTIME
+    p = _CONFIG_PATH or "config.json"
+    try:
+        mtime = os.path.getmtime(p)
+    except OSError:
+        mtime = 0.0
+    if _CFG_MTIME < 0 or mtime != _CFG_MTIME:
+        first = _CFG_MTIME < 0
+        _CFG = load_config(_CONFIG_PATH or None)
+        _CFG_MTIME = mtime
+        if not first:
+            print("  [config] config.json changed - reloaded, no restart needed")
+    return _CFG
+
+
 def _norm(s: str) -> str:
     return re.sub(r"[\s,.;:!?\"'`()\[\]{}<>，。；：！？“”‘’（）【】《》、·\-—…/\\]+", "", (s or "").lower())
 
@@ -79,7 +106,6 @@ def _bank_search(bank: list, q: str) -> list:
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "lecture-forge/0.1"
-    cfg: dict = {}
     site: str = ""
 
     def log_message(self, fmt, *a):  # keep the console usable
@@ -132,7 +158,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         p = self.path.split("?")[0]
         if p == "/ping":
-            m = self.cfg.get("model") or {}
+            m = cfg().get("model") or {}
             bank = self._bank()
             return self._json({"ok": True, "mode": "model" if m.get("api_key") else "bank", "bank": len(bank)})
         return self._file(p)
@@ -142,14 +168,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "error": "unknown endpoint"}, 404)
         try:
             n = int(self.headers.get("Content-Length") or 0)
-            payload = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
+            raw = self.rfile.read(n)
+            try:
+                text = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                text = raw.decode("utf-8-sig", "ignore")
+            payload = json.loads(text.lstrip("\ufeff") or "{}")
         except Exception as e:
             return self._json({"ok": False, "error": "bad request: %s" % e}, 400)
         q = (payload.get("q") or "").strip()
         ctx = (payload.get("ctx") or "").strip()
         if not q:
             return self._json({"ok": False, "error": "empty question"}, 400)
-        m = self.cfg.get("model") or {}
+        m = cfg().get("model") or {}
         if not m.get("api_key"):
             hits = _bank_search(self._bank(), q)
             if not hits:
@@ -202,20 +233,22 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def serve(config_path: str | None = None) -> None:
-    cfg = load_config(config_path)
-    site = cfg.get("site_dir") or "site"
+    global _CONFIG_PATH
+    _CONFIG_PATH = config_path or ""
+    conf = cfg()
+    site = conf.get("site_dir") or "site"
     if not os.path.isdir(site):
         die("site folder not found: %s\n  build it first: python -m lecture_forge build <lecture-folder> -o site" % site)
-    Handler.cfg = cfg
     Handler.site = site
-    host, port = cfg.get("host", "127.0.0.1"), int(cfg.get("port", 8765))
+    host, port = conf.get("host", "127.0.0.1"), int(conf.get("port", 8765))
     httpd = ThreadingHTTPServer((host, port), Handler)
-    m = cfg.get("model") or {}
+    m = conf.get("model") or {}
     print("lecture-forge serving %s" % os.path.abspath(site))
     print("  page : http://%s:%d/" % (host, port))
     print("  ask  : http://%s:%d/ask.html" % (host, port))
     print("  mode : %s" % ("model -> " + str(m.get("model")) if m.get("api_key") else
                            "bank only (fill model.api_key in config.json to ask anything)"))
+    print("  note : config.json is re-read on every request - edit it, then refresh the page")
     print("  stop : Ctrl+C")
     try:
         httpd.serve_forever()

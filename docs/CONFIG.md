@@ -3,6 +3,10 @@
 所有可配置项都在 `config.json`（复制 `config.example.json` 得到）。
 **`config.json` 在 `.gitignore` 里，永远不会被提交。**
 
+> 改完**不用重启服务**：`serve` 每次收到请求都会看一眼 `config.json` 的修改时间，
+> 变了就重新读（控制台会打一行 `[config] config.json changed - reloaded`）。
+> 填好 `model.api_key` 之后切回网页或按 F5，右上角的标签就从「助手在线 · 题库」变成「模型在线」。
+
 ```jsonc
 {
   "host": "127.0.0.1",          // 只在本机监听；想让局域网别人访问改 "0.0.0.0"
