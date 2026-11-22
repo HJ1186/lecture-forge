@@ -48,6 +48,34 @@ aside.nq ul{margin:8px 0 0;padding-left:22px;line-height:1.8}
 aside.nq li{margin:3px 0}
 body.hidenotes aside.nq{display:none}
 
+/* notes you add yourself, and the x on every note */
+aside.nq{position:relative}
+aside.nq.custom{background:#eef5fb;border-left-color:var(--brand)}
+aside.nq.custom summary{color:#14507d}
+aside.nq .nqtools{position:absolute;right:6px;top:3px;opacity:.62;transition:opacity .15s}
+aside.nq:hover .nqtools,aside.nq .nqtools:focus-within{opacity:1}
+.nqdel{border:none;background:transparent;color:#7a828c;font-size:16px;line-height:1;
+  cursor:pointer;padding:2px 7px;border-radius:7px}
+.nqdel:hover{background:#ffe9e3;color:#b3402a}
+aside.nq.flash{animation:flashNote 1.7s ease}
+@keyframes flashNote{
+  0%{box-shadow:0 0 0 0 rgba(31,78,121,.45)}
+  55%{box-shadow:0 0 0 9px rgba(31,78,121,0)}
+  100%{box-shadow:none}
+}
+#npill{position:fixed;left:20px;bottom:20px;z-index:59;display:none;align-items:center;gap:8px;
+  background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 10px;
+  font-size:13px;color:#5b6470;box-shadow:0 8px 22px rgba(0,0,0,.12);max-width:calc(100vw - 120px)}
+#npill button{border:1px solid var(--line);background:#f6f8fa;border-radius:8px;padding:3px 9px;
+  cursor:pointer;font-size:12px;color:#22262b;white-space:nowrap}
+#npill button:hover{background:#eaf1f7}
+.nqadd{margin-top:10px;border:1px solid #b9d3e6;background:#eef5fb;color:#14507d;
+  border-radius:8px;padding:4px 11px;font-size:12px;cursor:pointer}
+.nqadd:hover{background:#dceafa}
+@media (max-width:640px){
+  #npill{left:10px;bottom:10px;font-size:12px}
+}
+
 /* ---- dock ---- */
 #dock{position:fixed;right:20px;bottom:20px;z-index:60;font-size:14px}
 #panel{display:none;width:392px;max-width:calc(100vw - 40px);background:var(--card);

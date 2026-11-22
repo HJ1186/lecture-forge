@@ -81,6 +81,175 @@
     if (a) { ev.preventDefault(); jump(a.getAttribute("data-jump")); }
   });
 
+  /* ---------- notes: keep an answer, delete a note, put it back ----------
+     The built-in notes are baked into the page; this adds an x to each of
+     them (hide only, restorable) and lets a model answer become a new note
+     that survives a reload. Nothing leaves the browser: localStorage only. */
+  var NKEY = "lf_notes_" + noteSlug(), HKEY = "lf_hidden_" + noteSlug();
+
+  function noteSlug() {
+    var t = (CFG.title || document.title || "page").replace(/[^\w\u4e00-\u9fa5]+/g, "_");
+    return t.slice(0, 40) || "page";
+  }
+  function readArr(k) {
+    try { var v = JSON.parse(localStorage.getItem(k) || "[]"); return Array.isArray(v) ? v : []; }
+    catch (e) { return []; }
+  }
+  function writeArr(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function customNotes() { return readArr(NKEY); }
+  function hiddenIds() { return readArr(HKEY); }
+  function newNoteId() { return "n" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  function addNoteTools(aside, custom) {
+    if (aside.querySelector(".nqtools")) return;
+    var box = document.createElement("div");
+    box.className = "nqtools";
+    var del = document.createElement("button");
+    del.className = "nqdel";
+    del.type = "button";
+    del.textContent = "×";
+    del.title = custom ? "删除这条便签" : "隐藏这条便签（左下角可恢复）";
+    del.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); removeNote(aside); };
+    box.appendChild(del);
+    aside.appendChild(box);
+  }
+
+  function removeNote(aside) {
+    if (aside.dataset.nid) {
+      writeArr(NKEY, customNotes().filter(function (x) { return x.id !== aside.dataset.nid; }));
+      aside.remove();
+    } else {
+      var qid = aside.dataset.qid;
+      aside.remove();
+      if (qid) {
+        var h = hiddenIds();
+        if (h.indexOf(qid) < 0) { h.push(qid); writeArr(HKEY, h); }
+      }
+    }
+    refreshPill();
+  }
+
+  function noteNode(entry) {
+    var aside = document.createElement("aside");
+    aside.className = "nq custom";
+    aside.dataset.nid = entry.id;
+    var det = document.createElement("details");
+    det.open = true;
+    var html = "<summary>" + esc(entry.q || "我的便签") + "</summary><ul>";
+    (entry.a || []).forEach(function (x) { html += "<li>" + esc(x) + "</li>"; });
+    det.innerHTML = html + "</ul>";
+    aside.appendChild(det);
+    addNoteTools(aside, true);
+    return aside;
+  }
+
+  function h2ByPin(pin) {
+    if (!pin) return null;
+    var hs = document.querySelectorAll("h2"), i;
+    for (i = 0; i < hs.length; i++) {
+      if (hs[i].textContent.replace(/^\s+/, "").indexOf(pin) === 0) return hs[i];
+    }
+    return null;
+  }
+
+  function mountNote(entry) {
+    if (entry.id && document.querySelector('aside.nq[data-nid="' + entry.id + '"]')) return null;
+    var node = noteNode(entry);
+    var h = h2ByPin(entry.pin);
+    var host = document.querySelector(".wrap") || document.body;
+    if (h && h.parentNode) h.parentNode.insertBefore(node, h.nextSibling);
+    else host.appendChild(node);
+    return node;
+  }
+
+  /* save an answer as a note under the section you are reading */
+  function addAnswerAsNote(q, text) {
+    var pin = "", name = "", hs = [].slice.call(document.querySelectorAll("h2")), i;
+    var mid = window.scrollY + 100, cur = null;
+    for (i = 0; i < hs.length; i++) {
+      if (hs[i].getBoundingClientRect().top + window.scrollY <= mid) cur = hs[i];
+    }
+    if (!cur) cur = hs[0] || null;
+    if (cur) {
+      name = cur.textContent.replace(/^\s+/, "");
+      var m = name.match(/^([一二三四五六七八九十]+、)/);
+      pin = m ? m[1] : name.slice(0, 6);
+    }
+    var lines = String(text || "").split(/\n+/).map(function (s) {
+      return s.replace(/^\s*[-·•*]\s*/, "").trim();
+    }).filter(Boolean);
+    var entry = { id: newNoteId(), pin: pin, q: q || "这段在讲什么？", a: lines, ts: Date.now() };
+    var list = customNotes();
+    list.push(entry);
+    writeArr(NKEY, list);
+    document.body.classList.remove("hidenotes");
+    var node = mountNote(entry);
+    if (node) {
+      node.scrollIntoView({ behavior: "smooth", block: "center" });
+      node.classList.add("flash");
+      setTimeout(function () { node.classList.remove("flash"); }, 1800);
+    }
+    refreshPill();
+    return name;
+  }
+
+  function initNotes() {
+    hiddenIds().forEach(function (qid) {
+      var n = document.querySelector('aside.nq[data-qid="' + qid + '"]');
+      if (n) n.remove();
+    });
+    [].forEach.call(document.querySelectorAll("aside.nq"), function (n) { addNoteTools(n, false); });
+    customNotes().forEach(mountNote);
+    refreshPill();
+  }
+
+  function refreshPill() {
+    var pill = document.getElementById("npill");
+    if (!pill) return;
+    var nC = customNotes().length, nH = hiddenIds().length, i;
+    pill.innerHTML = "";
+    if (!nC && !nH) { pill.style.display = "none"; return; }
+    pill.style.display = "flex";
+    var lab = document.createElement("span");
+    lab.textContent = "我的便签 " + nC + " 条" + (nH ? " · 已隐藏 " + nH + " 条" : "");
+    pill.appendChild(lab);
+    if (nH) {
+      var b1 = document.createElement("button");
+      b1.type = "button";
+      b1.textContent = "恢复隐藏";
+      b1.onclick = function () { writeArr(HKEY, []); location.reload(); };
+      pill.appendChild(b1);
+    }
+    if (nC) {
+      var b2 = document.createElement("button");
+      b2.type = "button";
+      b2.textContent = "导出";
+      b2.title = "导出成 json，可以贴进 qa-bank.json 永久保存";
+      b2.onclick = function () {
+        var data = JSON.stringify({ entries: customNotes().map(function (x) {
+          return { pin: x.pin, q: x.q, a: x.a };
+        }) }, null, 2);
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+        a.download = "my-notes.json";
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+      };
+      pill.appendChild(b2);
+      var b3 = document.createElement("button");
+      b3.type = "button";
+      b3.textContent = "清空";
+      b3.onclick = function () {
+        if (window.confirm("清空你自己存的 " + nC + " 条便签？（讲义自带的便签不受影响）")) {
+          writeArr(NKEY, []); location.reload();
+        }
+      };
+      pill.appendChild(b3);
+    }
+  }
+
+  initNotes();
+
   /* ---------- which section is on screen (context for the model) ---------- */
   function grabView() {
     var hs = [].slice.call(document.querySelectorAll("h1,h2")), pick = null, i;
@@ -119,6 +288,7 @@
     var h = '<div class="card"><div class="q">' + esc(obj.q || "") + "</div>";
     h += '<div class="body">' + esc(obj.a || "") + "</div>";
     if (obj.src) h += '<div class="src">' + esc(obj.src) + "</div>";
+    h += '<button class="nqadd" type="button">＋ 存为便签</button>';
     return h + "</div>";
   }
 
@@ -161,7 +331,15 @@
       if (online) {
         status("问模型中...");
         askModel(q, g.text).then(function (r) {
-          if (r && r.ok && r.a) { ans.innerHTML = renderModel(r); status("模型回答 · 已压缩上下文", "on"); }
+          if (r && r.ok && r.a) {
+            ans.innerHTML = renderModel(r);
+            var nb = ans.querySelector(".nqadd");
+            if (nb) nb.onclick = function () {
+              var name = addAnswerAsNote(q, r.a);
+              status("已存为便签：" + (name || "文末"), "on");
+            };
+            status("模型回答 · 已压缩上下文", "on");
+          }
           else { offlineFallback(q, r && r.error); }
         }).catch(function () { offlineFallback(q); });
       } else {
