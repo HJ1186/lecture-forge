@@ -76,6 +76,7 @@ ffmpeg、模型缓存、配置、端口，缺什么就在下面直接给出安�
 | `python -m lecture_forge slides work/video.mp4 -o work/slides` | 按画面变化抽幻灯片帧，自动裁边放大 |
 | `python -m lecture_forge build work/lecture -o site` | 讲义 + 便签 + 速答框 → 静态网页 |
 | `python -m lecture_forge serve` | 起本地服务（页面 + `/ask` 模型接口） |
+| `python -m lecture_forge ask "问题" -c <讲义>/qa-bank.json` | 命令行问一句：有 key 走模型，没 key 查题库 |
 | `python -m lecture_forge audit .` | 发布前六项安全检查 |
 | `python -m lecture_forge audit . --history` | 连历史提交一起查（删掉过的 key 也抓得到） |
 

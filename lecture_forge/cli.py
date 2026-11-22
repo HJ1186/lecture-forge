@@ -67,12 +67,38 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("-c", "--config", default=None)
     d.add_argument("--root", default=".")
 
+    q = sub.add_parser("ask", help="ask one question (configured model, or the offline bank)")
+    q.add_argument("question")
+    q.add_argument("-c", "--config", default=None)
+    q.add_argument("--context", default="")
+    q.add_argument("--context-file", default=None)
+    q.add_argument("--bank", default=None)
+    q.add_argument("--timeout", type=float, default=120)
+    q.add_argument("--json", action="store_true")
+
     args = p.parse_args(argv)
 
     if args.cmd == "doctor":
         from .doctor import doctor
 
         return doctor(args.config, args.root)
+
+    if args.cmd == "ask":
+        from .ask import main as ask_main
+
+        forwarded = [args.question]
+        if args.config:
+            forwarded += ["-c", args.config]
+        if args.context:
+            forwarded += ["--context", args.context]
+        if args.context_file:
+            forwarded += ["--context-file", args.context_file]
+        if args.bank:
+            forwarded += ["--bank", args.bank]
+        forwarded += ["--timeout", str(args.timeout)]
+        if args.json:
+            forwarded.append("--json")
+        return ask_main(forwarded)
 
 
     if args.cmd == "fetch":
