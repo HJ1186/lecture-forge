@@ -127,6 +127,13 @@ def _is_placeholder(line: str, m: re.Match) -> bool:
     return any(tok in window for tok in ("...", "<user", "<name", "audit:ignore"))
 
 
+def _skip_line(rel: str, line: str) -> bool:
+    """Lines that must not be reported: the escape hatch, and the rule definitions."""
+    if "audit:ignore" in line:
+        return True
+    return "re.compile" in line and "audit" in rel.replace("\\", "/")
+
+
 def _scan_text(rel: str, path: str, findings: list[Finding]) -> None:
     ext = os.path.splitext(rel)[1].lower()
     if ext not in TEXT_EXT:
@@ -139,10 +146,8 @@ def _scan_text(rel: str, path: str, findings: list[Finding]) -> None:
     except OSError:
         return
     for i, line in enumerate(lines, 1):
-        if "audit:ignore" in line:
-            continue  # documented escape hatch: this line is an example, not a leak
-        if "re.compile" in line and "audit" in rel.replace("\\", "/"):
-            continue  # the rule definitions themselves
+        if _skip_line(rel, line):
+            continue  # escape hatch / the rule definitions themselves
         for name, rx in SECRET_RULES:
             m = rx.search(line)
             if m:
@@ -196,7 +201,80 @@ def _scan_path(rel: str, path: str, findings: list[Finding]) -> None:
         findings.append(Finding("1 secrets", "FAIL", rel, "credential file", "remove and rotate"))
 
 
-def audit(root: str = ".", as_json: bool = False, strict: bool = False) -> int:
+def _scan_history(root: str, findings: list[Finding], limit_per_rule: int = 20) -> tuple[int, int]:
+    """Scan every revision, not just the current tree.
+
+    Deleting a line in a new commit does NOT remove it from the repo: the blob
+    stays reachable through history and cloning still downloads it. This walks
+    `git log -p --all` and tests only the ADDED lines, so a key that was pasted
+    once and deleted still shows up (and must be rotated + history rewritten).
+
+    Returns (commits_seen, lines_scanned).
+    """
+    try:
+        out = subprocess.run(["git", "-C", root, "log", "--all", "--no-merges", "-p", "-U0",
+                              "--format=@@@%H"], capture_output=True)
+        if out.returncode != 0:
+            return (0, 0)
+        text = out.stdout.decode("utf-8", "replace")
+    except Exception:
+        return (0, 0)
+
+    sha, rel, commits, lines = "", "", set(), 0
+    seen: dict[str, int] = {}
+    for raw in text.splitlines():
+        if raw.startswith("@@@"):
+            sha = raw[3:].strip()
+            commits.add(sha)
+            continue
+        if raw.startswith("+++ "):
+            p = raw[4:].strip()
+            rel = p[2:] if p.startswith("b/") else p
+            continue
+        if not raw.startswith("+") or raw.startswith("+++"):
+            continue
+        line = raw[1:]
+        lines += 1
+        if _skip_line(rel, line):
+            continue
+        for name, rx in SECRET_RULES:
+            m = rx.search(line)
+            if not m:
+                continue
+            if _is_placeholder(line, m):
+                continue
+            key = "1 secrets|" + name
+            seen[key] = seen.get(key, 0) + 1
+            if seen[key] <= limit_per_rule:
+                token = m.group(m.lastindex or 0) if m.lastindex else m.group(0)
+                findings.append(Finding("1 secrets", "FAIL", "%s:%s" % (sha[:7], rel),
+                                        name + " (in history)", _mask(token)))
+        for name, rx in PRIVACY_RULES:
+            m = rx.search(line)
+            if not m:
+                continue
+            hit = m.group(0)
+            if name == "email" and any(d in hit.lower() for d in SAFE_EMAIL_DOMAINS):
+                continue
+            key = "2 privacy|" + name
+            seen[key] = seen.get(key, 0) + 1
+            if seen[key] <= limit_per_rule:
+                findings.append(Finding("2 privacy", "FAIL", "%s:%s" % (sha[:7], rel),
+                                        name + " (in history)", _mask(hit)))
+        for name, rx in ABS_PATH_RULES:
+            m = rx.search(line)
+            if not m or _is_placeholder(line, m):
+                continue
+            key = "3 abs paths|" + name
+            seen[key] = seen.get(key, 0) + 1
+            if seen[key] <= limit_per_rule:
+                findings.append(Finding("3 abs paths", "FAIL", "%s:%s" % (sha[:7], rel),
+                                        name + " (in history)", m.group(0)))
+    return (len(commits), lines)
+
+
+def audit(root: str = ".", as_json: bool = False, strict: bool = False,
+          history: bool = False) -> int:
     root = os.path.abspath(root)
     files = _tracked_files(root)
     findings: list[Finding] = []
@@ -207,6 +285,16 @@ def audit(root: str = ".", as_json: bool = False, strict: bool = False) -> int:
         _scan_path(rel, path, findings)
         _scan_text(rel, path, findings)
 
+    hist_note = ""
+    if history:
+        n_commits, n_lines = _scan_history(root, findings)
+        if n_commits:
+            hist_note = "  [+ history: %d commits, %d added lines]" % (n_commits, n_lines)
+            if n_commits < 2:
+                hist_note += "  only 1 commit visible - shallow clone? push with full history"
+        else:
+            hist_note = "  [+ history: not a git repo, skipped]"
+
     order = ["1 secrets", "2 privacy", "3 abs paths", "4 temp files", "5 junk", "6 not public"]
     findings.sort(key=lambda f: (order.index(f.group), f.where))
     fails = [f for f in findings if f.level == "FAIL"]
@@ -215,9 +303,10 @@ def audit(root: str = ".", as_json: bool = False, strict: bool = False) -> int:
     if as_json:
         print(json.dumps({"root": root, "files": len(files),
                           "fail": len(fails), "warn": len(warns),
+                          "history": bool(history),
                           "findings": [f.as_dict() for f in findings]}, ensure_ascii=False, indent=2))
     else:
-        print("auditing %s  (%d files)" % (root, len(files)))
+        print("auditing %s  (%d files)%s" % (root, len(files), hist_note))
         if not findings:
             print("  clean: no secrets, no personal data, no absolute paths, no junk")
         for group in order:
@@ -234,6 +323,7 @@ def audit(root: str = ".", as_json: bool = False, strict: bool = False) -> int:
         if fails:
             print("\nfix the blocking items first. For a credential that was ever committed:")
             print("  rotate it, then rewrite history - deleting the line in a new commit is not enough.")
+            print("  (that is what --history checks; a key that only ever lived in config.json is fine)")
     if fails:
         return 1
     if strict and warns:

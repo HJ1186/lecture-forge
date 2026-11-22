@@ -60,6 +60,8 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("root", nargs="?", default=".")
     a.add_argument("--json", action="store_true")
     a.add_argument("--strict", action="store_true", help="warnings fail too")
+    a.add_argument("--history", action="store_true",
+                   help="also scan every past commit (catches a key that was deleted later)")
 
     d = sub.add_parser("doctor", help="diagnose the environment (why won't it start?)")
     d.add_argument("-c", "--config", default=None)
@@ -108,7 +110,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "audit":
         from .audit import audit as run_audit
 
-        return run_audit(args.root, as_json=args.json, strict=args.strict)
+        return run_audit(args.root, as_json=args.json, strict=args.strict,
+                         history=args.history)
 
     return 2
 

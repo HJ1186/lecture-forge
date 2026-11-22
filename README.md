@@ -77,6 +77,7 @@ ffmpeg、模型缓存、配置、端口，缺什么就在下面直接给出安�
 | `python -m lecture_forge build work/lecture -o site` | 讲义 + 便签 + 速答框 → 静态网页 |
 | `python -m lecture_forge serve` | 起本地服务（页面 + `/ask` 模型接口） |
 | `python -m lecture_forge audit .` | 发布前六项安全检查 |
+| `python -m lecture_forge audit . --history` | 连历史提交一起查（删掉过的 key 也抓得到） |
 
 ## 讲义长什么样
 
@@ -123,11 +124,11 @@ docs/                 QUICKSTART / AGENT / CONFIG / SECURITY / AUDIT
 ## 发布前自查
 
 ```bash
-python -m lecture_forge audit .
+python -m lecture_forge audit . --history --strict
 # 0 blocking, 0 to review  ->  可以 push
 ```
 
-六组检查与其修法见 [`docs/AUDIT.md`](docs/AUDIT.md)。CI 里也挂了同一条命令
+六组检查与其修法见 [`docs/AUDIT.md`](docs/AUDIT.md)。默认只扫当前这棵树；担心以前粘过、后来删掉的那种 key，就加 `--history`（会翻 `git log -p` 的全部新增行）。CI 里也挂了同一条命令
 （`docs/ci/audit.yml`；复制到 `.github/workflows/` 就会在每次 push 时自动跑，需要带 `workflow` 权限的 token 推一次）。
 
 ## 限制（先说清楚）

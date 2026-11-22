@@ -91,6 +91,42 @@ auditing /path/to/lecture-forge  (37 files)
 | 已经提交过 key | 轮换 key → 从历史里彻底清除（`git filter-repo`）→ 重新推送；必要时联系平台 |
 | 大文件 | 外链、LFS，或者干脆不放进仓库 |
 
+## 已经提交过、后来删掉了？`--history`
+
+默认只扫**当前这棵树**——也就是"下一次 clone 会拿到的文件"。但 git 不是这样忘事的：一行字进了某个提交，之后删掉，**那个 blob 仍然留在历史里**，`git clone` 照样下载。所以"我在新提交里把 key 删了"并不等于"它不在仓库里了"。
+
+```bash
+python -m lecture_forge audit . --history
+```
+
+`--history` 会把 `git log -p --all` 里所有**新增行**过一遍同样的规则，命中时写成 `提交号:文件`：
+
+```
+auditing .  (43 files)  [+ history: 11 commits, 3727 added lines]
+
+1 secrets
+  [FAIL] 02fbef5:leak.py           openai/llm key (in history)
+         sk-A*******************AAAA
+```
+
+怎么处理：
+
+| 情况 | 做法 |
+| --- | --- |
+| 命中一个**真在用的** key | 先去平台**轮换/吊销**，再 `git filter-repo` 重写历史 + 强推；顺序反了等于没救 |
+| 命中一个早就作废的 key | 仍然建议重写历史（有些扫描服务会一直报），至少轮换过的就不用慌 |
+| key 一直只放在 `config.json` / `.env` | 那它从没进过 git，`--history` 也就不会命中——这是正确的用法 |
+| 只是文档里写着 `sk-…` 这种形态说明 | 占位符自动豁免；确实要保留就加 `audit:ignore` |
+
+发布前建议直接跑最严格的一档：
+
+```bash
+python -m lecture_forge audit . --history --strict
+```
+
+⚠️ `--history` 靠本地的 git 历史。**浅克隆（`--depth=1`）里它只能看到一个提交**，看起来"很干净"其实什么都没查。
+CI 里要先把历史拉全：`actions/checkout` 设 `fetch-depth: 0`（`docs/ci/audit.yml` 已经这么写了）。
+
 ## 接到 CI 里
 
 `docs/ci/audit.yml` 是现成的 CI 配置：复制到 `.github/workflows/` 就会在每次 push / PR 时跑这一条命令，失败就红。
